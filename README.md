@@ -1,2 +1,2 @@
 # StyleTTS2-Dash
- A lightweight StyleTTS2 and Vokan inference library
+A lightweight StyleTTS2, Tsukasa and Vokan inference library
