@@ -155,6 +155,7 @@ class StyleTTS2Pipeline:
         """
         The StyleTTS2 pipeline, please us .load_from_folder to load the model before continuing...
         """
+        self.is_tsukasa = False
         self.is_vokanv2 = False
         self.model = None
         self.phonemizer = Phonemizer()
@@ -198,6 +199,7 @@ class StyleTTS2Pipeline:
 
         self.model = model
         self.is_vokanv2 = is_vokanv2
+        self.is_tsukasa = is_tsukasa
 
         self.sampler = DiffusionSampler(
             self.model.diffusion.diffusion,
@@ -295,8 +297,13 @@ class StyleTTS2Pipeline:
             d = self.model.predictor.text_encoder(d_en,
                                                   s, input_lengths, text_mask)
 
-            x, _ = self.model.predictor.lstm(d)
-            duration = self.model.predictor.duration_proj(x)
+            if not any([self.is_tsukasa, self.is_vokanv2]):
+                x, _ = self.model.predictor.lstm(d)
+                duration = self.model.predictor.duration_proj(x)
+            else:
+                x = self.model.predictor.lstm(d)
+                x_mod = self.model.predictor.prepare_projection(x)
+                duration = self.model.predictor.duration_proj(x_mod)
 
             duration = torch.sigmoid(duration).sum(axis=-1)
             duration = duration * 1 / speed
@@ -330,7 +337,7 @@ class StyleTTS2Pipeline:
 
         return out.squeeze().cpu().numpy(), s_pred
 
-    def postprocess(self, audio, threshold=95, max_samples=20000, lead_percent=0.08, trail_percent=0.08):
+    def postprocess(self, audio, threshold=95, max_samples=20000, lead_percent=0.07, trail_percent=0.07):
         """
         The post process method, cleans up any artefacts from generation
 
