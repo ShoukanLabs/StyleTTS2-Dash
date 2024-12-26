@@ -337,7 +337,7 @@ class StyleTTS2Pipeline:
 
         return out.squeeze().cpu().numpy(), s_pred
 
-    def postprocess(self, audio, threshold=95, max_samples=20000, lead_percent=0.07, trail_percent=0.07):
+    def postprocess(self, audio, threshold=95, max_samples=10000, lead_percent=0.025, trail_percent=0.025):
         """
         The post process method, cleans up any artefacts from generation
 

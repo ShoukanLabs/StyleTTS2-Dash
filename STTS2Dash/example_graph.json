@@ -1,0 +1,35 @@
+{
+  "nodes": [
+    {
+      "id": "load1",
+      "type": "LoadEmbeddingNode",
+      "input_sockets": [],
+      "output_sockets": [
+        "embedding"
+      ],
+      "audio_path": "embedding1.mp3",
+      "pipeline_name": "StyleTTSPipeline"
+    },
+    {
+      "id": "norm1",
+      "type": "NormalizeNode",
+      "input_sockets": [
+        "embedding"
+      ],
+      "output_sockets": [
+        "output"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from_node": "load1",
+      "from_socket": "embedding",
+      "to_node": "norm1",
+      "to_socket": "embedding"
+    }
+  ],
+  "required_pipelines": [
+    "StyleTTSPipeline"
+  ]
+}
