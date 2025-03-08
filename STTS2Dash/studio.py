@@ -367,6 +367,38 @@ class AdditionNode(Node):
         return set()
 
 
+class StyleTransferNode(Node):
+    def __init__(self, node_id: str):
+        super().__init__(
+            node_id,
+            input_sockets={"acoustic", "prosody"},
+            output_sockets={"output"}
+        )
+
+    def process(self, PipelineRegistery) -> None:
+        acoustic = self.input_sockets["acoustic"]
+        prosody = self.input_sockets["prosody"]
+
+        acoustic_size = acoustic.shape[1]  # Number of columns in ref_s
+        acoustic_isolated = acoustic[:, :acoustic_size]
+
+        prosody_size = prosody.shape[1]
+        prosody_isolated = prosody[:, prosody_size:]
+
+        self.output_sockets["output"] = np.concatenate([acoustic_isolated, prosody_isolated], axis=1)
+
+    def to_dict(self) -> dict:
+        return super().to_dict()
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'StyleTransferNode':
+        return cls(data["id"])
+
+    @classmethod
+    def get_required_pipelines(cls) -> Set[str]:
+        return set()
+
+
 class SubtractionNode(Node):
     def __init__(self, node_id: str):
         super().__init__(
@@ -579,7 +611,8 @@ class Graph:
         'MeanNode': MeanNode,
         'MinNode': MinNode,
         'MaxNode': MaxNode,
-        'PairwiseMergeNode': PairwiseMergeNode
+        'PairwiseMergeNode': PairwiseMergeNode,
+        'StyleTransferNode': StyleTransferNode
     }
 
     def __init__(self, pipeline_registery):

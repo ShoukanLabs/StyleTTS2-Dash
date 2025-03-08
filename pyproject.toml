@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "styletts2-dash"
-version = "0.0.1"
+version = "0.0.2"
 description = "A lightweight StyleTTS2, Tsukasa and Vokan inference library, Original authors: Yinghao Aaron Li, Cong Han, Vinay S. Raghavan, Gavin Mischler, Nima Mesgarani. "
 authors = ["ShoukanLabs"]
 homepage = "https://github.com/ShoukanLabs/StyleTTS2-Dash"
@@ -39,7 +39,7 @@ typing-extensions = "^4.9.0"
 networkx = "^2.8.8, <3.0.0"
 
 dearpygui = "2.0.0"
-VoPho = "^0.0.10"
+VoPho = "0.0.15"
 
 [build-system]
 requires = ["poetry-core"]

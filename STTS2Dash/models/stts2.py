@@ -371,7 +371,7 @@ class TextEncoder(nn.Module):
         mask = torch.gt(mask + 1, lengths.unsqueeze(1))
         return mask
 
-class VokanTextEncoder(nn.Module):
+class TsukasaTextEncoder(nn.Module):
     def __init__(self, channels, kernel_size, depth, n_symbols, actv=nn.LeakyReLU(0.2)):
         super().__init__()
         self.embedding = nn.Embedding(n_symbols, channels)
@@ -632,7 +632,7 @@ class ProsodyPredictor(nn.Module):
         return mask
 
 
-class VokanProsodyPredictor(nn.Module):
+class TsuakasaProsodyPredictor(nn.Module):
 
     def __init__(self, style_dim, d_hid, nlayers, max_dur=50, dropout=0.1):
         super().__init__()
@@ -870,6 +870,7 @@ def build_model(args, is_vokan=False, is_tsukasa=False):
                           upsample_kernel_sizes=args.decoder.upsample_kernel_sizes,
                           gen_istft_n_fft=args.decoder.gen_istft_n_fft,
                           gen_istft_hop_size=args.decoder.gen_istft_hop_size)
+
     elif args.decoder.type == "vocos":
         from ..decoders.vocos import Decoder
         decoder = Decoder(dim_in=args.hidden_dim, style_dim=args.style_dim, dim_out=args.n_mels,
@@ -877,6 +878,7 @@ def build_model(args, is_vokan=False, is_tsukasa=False):
                           num_layers=args.decoder.num_layers,
                           gen_istft_n_fft=args.decoder.gen_istft_n_fft,
                           gen_istft_hop_size=args.decoder.gen_istft_hop_size)
+
     elif args.decoder.type == "hifigan":
         from ..decoders.hifigan import Decoder
         decoder = Decoder(dim_in=args.hidden_dim, style_dim=args.style_dim, dim_out=args.n_mels,
@@ -891,13 +893,13 @@ def build_model(args, is_vokan=False, is_tsukasa=False):
     bert = load_plbert()
 
     if is_vokan or is_tsukasa:
-        text_encoder = VokanTextEncoder(channels=args.hidden_dim, kernel_size=5, depth=args.n_layer, n_symbols=args.n_token)
+        text_encoder = TsukasaTextEncoder(channels=args.hidden_dim, kernel_size=5, depth=args.n_layer, n_symbols=args.n_token)
     else:
         text_encoder = TextEncoder(channels=args.hidden_dim, kernel_size=5, depth=args.n_layer, n_symbols=args.n_token)
 
     if is_vokan or is_tsukasa:
-        predictor = VokanProsodyPredictor(style_dim=args.style_dim, d_hid=args.hidden_dim, nlayers=args.n_layer,
-                                     max_dur=args.max_dur, dropout=args.dropout)
+        predictor = TsuakasaProsodyPredictor(style_dim=args.style_dim, d_hid=args.hidden_dim, nlayers=args.n_layer,
+                                             max_dur=args.max_dur, dropout=args.dropout)
     else:
         predictor = ProsodyPredictor(style_dim=args.style_dim, d_hid=args.hidden_dim, nlayers=args.n_layer,
                                  max_dur=args.max_dur, dropout=args.dropout)

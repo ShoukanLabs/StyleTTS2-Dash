@@ -158,12 +158,13 @@ class StyleTTS2Pipeline:
         self.is_tsukasa = False
         self.is_vokanv2 = False
         self.model = None
-        self.phonemizer = Phonemizer()
+        self.phonemizer = Phonemizer(stress=False)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.config = None
         self.sampler = None
+        self.precision=None
 
-    def load_from_files(self, path_to_model, path_to_config, is_vokanv2=False, is_tsukasa=False, map_location=None):
+    def load_from_files(self, path_to_model, path_to_config, is_vokanv2=False, is_tsukasa=False, map_location=None, precision=None):
         """
         Loads the model located in the folder into the pipeline for usage
 
@@ -173,6 +174,14 @@ class StyleTTS2Pipeline:
         :param is_tsukasa: Whether the model is a soshyant tsukasa model or not
         :param map_location: The device to load the model on
         """
+        if precision in ["fp32", "fp16"]:
+            if precision == "fp16":
+                self.precision = torch.float16
+            elif precision == "fp32":
+                self.precision = torch.float32
+        else:
+            self.precision = torch.float32
+
         print("loading config...")
         config = yaml.safe_load(open(path_to_config))
         self.config = config
@@ -181,9 +190,9 @@ class StyleTTS2Pipeline:
         _ = [model[key].eval() for key in model]
         if map_location:
             self.device = "cpu"
-            _ = [model[key].to(self.device) for key in model]
+            _ = [model[key].to(self.device, dtype=self.precision) for key in model]
         else:
-            _ = [model[key].to(self.device) for key in model]
+            _ = [model[key].to(self.device, dtype=self.precision) for key in model]
 
         print("loading model...")
         for key, state_dict in torch.load(path_to_model,
@@ -197,16 +206,20 @@ class StyleTTS2Pipeline:
                 state_dict = {k[7:]: v for k, v in state_dict.items()}
                 model[key].load_state_dict(state_dict, strict=False)
 
+        _ = [model[key].to(self.device, dtype=self.precision) for key in model]
+
         self.model = model
         self.is_vokanv2 = is_vokanv2
         self.is_tsukasa = is_tsukasa
 
+        self.model.diffusion.diffusion.net.to(device=self.device, dtype=self.precision)
+
         self.sampler = DiffusionSampler(
-            self.model.diffusion.diffusion,
-            sampler=ADPM2Sampler(),
+            self.model.diffusion.diffusion.to(device=self.device, dtype=self.precision),
+            sampler=ADPM2Sampler().to(device=self.device, dtype=self.precision),
             sigma_schedule=KarrasSchedule(sigma_min=0.0001, sigma_max=3.0, rho=9.0),  # empirical parameters
             clamp=False
-        )
+        ).to(device=self.device, dtype=self.precision)
 
         print("Done!")
 
@@ -240,7 +253,7 @@ class StyleTTS2Pipeline:
         audio, index = librosa.effects.trim(wave, top_db=30)
         if sr != self.config["preprocess_params"]["sr"]:
             audio = librosa.resample(audio, sr, self.config["preprocess_params"]["sr"])
-        mel_tensor = self.preprocess(audio).to(self.device)
+        mel_tensor = self.preprocess(audio).to(self.device, dtype=self.precision)
 
         with torch.no_grad():
             ref_s = self.model.style_encoder(mel_tensor.unsqueeze(1))
@@ -276,7 +289,7 @@ class StyleTTS2Pipeline:
             bert_dur = self.model.bert(tokens, attention_mask=(~text_mask).int())
             d_en = self.model.bert_encoder(bert_dur).transpose(-1, -2)
 
-            s_pred = self.sampler(noise=torch.randn((1, 256)).unsqueeze(1).to(self.device),
+            s_pred = self.sampler(noise=torch.randn((1, 256)).unsqueeze(1).to(self.device, dtype=self.precision),
                                   embedding=bert_dur,
                                   embedding_scale=embedding_scale,
                                   features=ref_s,  # reference from the same speaker as the embedding
@@ -406,6 +419,7 @@ class StyleTTS2Pipeline:
                  embedding_scale=1,
                  speed=1,
                  language=None,
+                 force_espeak_dialect=True,
                  post_processing_args=None,
                  output_file_path=None):
         """
@@ -418,10 +432,16 @@ class StyleTTS2Pipeline:
         :param embedding_scale: The embedding scale (higher = more expressive but more unstable)
         :param speed: The amount to speed up or slow down the speech (1 = normal, 1.1 = 10% faster)
         :param language: The language code (i.e en, zh, it) to force phonemize in, if None, will use multicode support
+        :param force_espeak_dialect: Forces a preprocessing step to correct to the espeak phoneme dialect
         :param post_processing_args: any post processing args (in a dict)
         :param output_file_path: the output file path, if any (will still return a numpy wav)
         :return: (sr, numpy audio)
         """
+
+        # if force_espeak_dialect:
+        #     self.phonemizer.legacy = True
+        # else:
+        #     self.phonemizer.legacy = False
 
         if post_processing_args is None:
             post_processing_args = {}
@@ -431,9 +451,9 @@ class StyleTTS2Pipeline:
         textcleaner = TextCleaner()
 
         if not isinstance(style, str):
-            pass
+            style = style.to(dtype=self.precision)
         else:
-            style = self.compute_style(style)
+            style = self.compute_style(style).to(dtype=self.precision)
 
         texts = split_and_recombine_text(text, max_length=300)
         if len(texts) > 1:

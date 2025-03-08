@@ -393,8 +393,8 @@ class NodeEditor:
 if __name__ == "__main__":
     # Create pipeline registry and register StyleTTS pipeline
     ttsPipe = tts.StyleTTS2Pipeline()
-    ttsPipe.load_from_files("./test_models/epoch 7.pth",
-                            "./test_models/config_n.yml", is_tsukasa=True)
+    ttsPipe.load_from_files("./test_models/....pth",
+                            "./test_models/....yml", is_tsukasa=True)
 
     register = studio.PipelineRegistry()
     register.register("StyleTTSPipeline", ttsPipe)
