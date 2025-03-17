@@ -9,11 +9,21 @@ import torch
 import torchaudio
 import yaml
 
+
 from tqdm import tqdm
 
 from .diffusion.sampler import DiffusionSampler, KarrasSchedule, ADPM2Sampler
 from .models.stts2 import build_model
 from VoPho.engine import Phonemizer
+
+from nltk.tokenize import word_tokenize
+
+import phonemizer
+
+torch.set_float32_matmul_precision("medium")
+torch.backends.cuda.matmul.allow_tf32 = True
+
+global_phonemizer = phonemizer.backend.EspeakBackend(language='en-us', preserve_punctuation=True,  with_stress=True)
 
 _pad = "$"
 _punctuation = ';:,.!?¡¿—…"«»“” '
@@ -158,7 +168,7 @@ class StyleTTS2Pipeline:
         self.is_tsukasa = False
         self.is_vokanv2 = False
         self.model = None
-        self.phonemizer = Phonemizer(stress=False)
+        self.phonemizer = Phonemizer(stress=True)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.config = None
         self.sampler = None
@@ -350,7 +360,7 @@ class StyleTTS2Pipeline:
 
         return out.squeeze().cpu().numpy(), s_pred
 
-    def postprocess(self, audio, threshold=95, max_samples=10000, lead_percent=0.025, trail_percent=0.025):
+    def postprocess(self, audio, threshold=95, max_samples=5000, lead_percent=0.025, trail_percent=0.0025):
         """
         The post process method, cleans up any artefacts from generation
 
@@ -419,9 +429,10 @@ class StyleTTS2Pipeline:
                  embedding_scale=1,
                  speed=1,
                  language=None,
-                 force_espeak_dialect=True,
+                 force_espeak_dialect=False,
                  post_processing_args=None,
-                 output_file_path=None):
+                 output_file_path=None,
+                 scaled_audio=True):
         """
         :param text: The input text
         :param style: The path to an audio file, or a tensor for the style vector
@@ -459,12 +470,17 @@ class StyleTTS2Pipeline:
         if len(texts) > 1:
             texts = tqdm(texts)
         for text in texts:
-            if language:
-                phonemes = self.phonemizer.phonemize_for_language(text, language)
-            elif language == "phonemes":
-                phonemes = text
+            if not force_espeak_dialect:
+                if language:
+                    phonemes = self.phonemizer.phonemize_for_language(text, language)
+                elif language == "phonemes":
+                    phonemes = text
+                else:
+                    phonemes = self.phonemizer.phonemize(text)
             else:
-                phonemes = self.phonemizer.phonemize(text)
+                ps = global_phonemizer.phonemize([text])
+                ps = word_tokenize(ps[0])
+                phonemes = ' '.join(ps)
 
             phonemes = textcleaner(phonemes)
 
@@ -482,7 +498,10 @@ class StyleTTS2Pipeline:
 
             audio = np.concatenate((audio, synthesized_audio))
 
-        scaled = np.int16(audio / np.max(np.abs(audio)) * 32767)
+        if scaled_audio:
+            scaled = np.int16(audio / np.max(np.abs(audio)) * 32767)
+        else:
+            scaled = audio
 
         if output_file_path:
             sf.write(output_file_path, scaled, self.config["preprocess_params"]["sr"])  # a wav at sampling rate 1 Hz

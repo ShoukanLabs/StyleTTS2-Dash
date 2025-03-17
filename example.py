@@ -1,20 +1,26 @@
 import time
 import traceback
 
+import numpy as np
+import soundfile as sf
+
 from STTS2Dash.tts import StyleTTS2Pipeline
+from STTS2Dash.upsamplers.inference import load_model, inference
 import torch
 
 if __name__ == '__main__':
     tts = StyleTTS2Pipeline()
-    tts.load_from_files("./test_models/....pth",
-                        "./test_models/....yml", is_tsukasa=True, precision="fp32")
+    tts.load_from_files("./test_models/...pth",
+                        "./test_models/...yml", is_tsukasa=True, precision="fp32")
+
+    upsampler = load_model("./test_models/upsampler/config.json", "./test_models/upsampler/g_24kto48k", "cuda")
 
     # Default parameters
     diffusion_steps = 30
     alpha = 0.0
     beta = 0.0
     embedding_scale = 2
-    speed = 0.9
+    speed = 1
     audio_style_path = "./test_models/n-sample.wav"
 
     while True:
@@ -56,16 +62,22 @@ if __name__ == '__main__':
         # Generate audio
         try:
             start = time.time()
-            tts.generate(text,
-                         audio_style_path,
-                         diffusion_steps=diffusion_steps,
-                         alpha=alpha,
-                         beta=beta,
-                         embedding_scale=embedding_scale,
-                         output_file_path="./test.wav",
-                         speed=speed,
-                         force_espeak_dialect=True,
-                         language="en")
+            old_sr, audio_out = tts.generate(text.replace('"', ""),
+                                             audio_style_path,
+                                             diffusion_steps=diffusion_steps,
+                                             alpha=alpha,
+                                             beta=beta,
+                                             embedding_scale=embedding_scale,
+                                             speed=speed,
+                                             force_espeak_dialect=True,
+                                             language="en",
+                                             scaled_audio=False)
+
+            # scaled = np.int16(audio_out / np.max(np.abs(audio_out)) * 32767)
+
+            audio_up, sr = inference(old_sr, audio_out, "./test_models/upsampler/config.json", upsampler, "cuda")
+
+            sf.write("./test.wav", audio_up, sr)
             print(f"Done... Saved audio with parameters:")
             print(f"Audio Style Path: {audio_style_path}")
             end = time.time()
