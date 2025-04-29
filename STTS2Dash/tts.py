@@ -172,7 +172,14 @@ class StyleTTS2Pipeline:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.config = None
         self.sampler = None
-        self.precision=None
+        self.precision = None
+        self.use_prosody_bert = False
+        self.bert = None
+
+    def load_style_bert(self, repo_id, token=None):
+        from sentence_transformers import SentenceTransformer
+        self.use_prosody_bert = True
+        self.bert = SentenceTransformer(repo_id, token=token)
 
     def load_from_files(self, path_to_model, path_to_config, is_vokanv2=False, is_tsukasa=False, map_location=None, precision=None):
         """
@@ -481,6 +488,19 @@ class StyleTTS2Pipeline:
                 ps = global_phonemizer.phonemize([text])
                 ps = word_tokenize(ps[0])
                 phonemes = ' '.join(ps)
+
+            if self.use_prosody_bert:
+                embedding = torch.from_numpy(self.bert.encode(text, output_value="sentence_embedding")).unsqueeze(0).to(self.device)
+                print(style.shape, embedding.shape)
+                # Weighted average
+                combined = torch.zeros_like(embedding)
+                combined[:128] = beta * embedding[:128] + (1 - beta) * style[:128]
+                combined[128:] = alpha * embedding[128:] + (1 - alpha) * style[128:]
+
+                style = combined
+                
+                alpha = 0
+                beta = 0
 
             phonemes = textcleaner(phonemes)
 

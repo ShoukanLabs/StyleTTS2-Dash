@@ -10,18 +10,19 @@ import torch
 
 if __name__ == '__main__':
     tts = StyleTTS2Pipeline()
-    tts.load_from_files("./test_models/...pth",
-                        "./test_models/...yml", is_tsukasa=True, precision="fp32")
+    tts.load_style_bert("HF_PATH/HERE")
+    tts.load_from_files("...",
+                        "...", is_tsukasa=True, precision="fp32")
 
     upsampler = load_model("./test_models/upsampler/config.json", "./test_models/upsampler/g_24kto48k", "cuda")
 
     # Default parameters
     diffusion_steps = 30
-    alpha = 0.0
-    beta = 0.0
+    alpha = 0.8
+    beta = 0.35
     embedding_scale = 2
     speed = 1
-    audio_style_path = "./test_models/n-sample.wav"
+    audio_style_path = "./test_models/....wav"
 
     while True:
         text = input("Enter text to synthesize (or 'quit' to exit): ").strip()

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "styletts2-dash"
-version = "0.0.2"
+version = "0.0.3"
 description = "A lightweight StyleTTS2, Tsukasa and Vokan inference library, Original authors: Yinghao Aaron Li, Cong Han, Vinay S. Raghavan, Gavin Mischler, Nima Mesgarani. "
 authors = ["ShoukanLabs"]
 homepage = "https://github.com/ShoukanLabs/StyleTTS2-Dash"
