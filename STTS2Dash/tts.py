@@ -471,7 +471,11 @@ class StyleTTS2Pipeline:
         if not isinstance(style, str):
             style = style.to(dtype=self.precision)
         else:
-            style = self.compute_style(style).to(dtype=self.precision)
+            if style.endswith(".emb"):
+                style = torch.load(style)
+                style = style.to(dtype=self.precision, device=self.device)
+            else:
+                style = self.compute_style(style).to(dtype=self.precision)
 
         texts = split_and_recombine_text(text, max_length=300)
         if len(texts) > 1:

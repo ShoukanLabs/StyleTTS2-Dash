@@ -18,8 +18,8 @@ if __name__ == '__main__':
 
     # Default parameters
     diffusion_steps = 30
-    alpha = 0.8
-    beta = 0.35
+    alpha = 0.6
+    beta = 0.2
     embedding_scale = 2
     speed = 1
     audio_style_path = "./test_models/....wav"
